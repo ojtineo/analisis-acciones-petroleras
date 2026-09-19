@@ -1,0 +1,6 @@
+yfinance
+plotly
+pandas
+google-genai
+python-dotenv
+reportlab
