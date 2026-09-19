@@ -10,7 +10,7 @@ import re
 from google import genai as gem
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from xml.sax.saxutils import escape
 
@@ -52,14 +52,34 @@ ara convertir negritas de Markdown que trae informe_ia"""
 
 def markdown_a_reportlab (texto):
 
-    texto = escape(texto) #Protegemos caracteres especiales
-    texto = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', texto) #Convertimos texto en negritas
+    texto = escape(texto) #Protección de caracteres especiales
+    texto = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', texto) #Conversión de texto en negritas
     return texto
 
 texto_formateado = markdown_a_reportlab(informe_ia.text)
+
+#Creación de archivo inf_petr.pdf
 
 doc = SimpleDocTemplate(
     "inf_petr.pdf",
     pagesize=A4
 )
-print(A4)
+
+styles = getSampleStyleSheet()
+contenido = []
+
+contenido.append(
+    Paragraph(
+        "INFORME FINANCIERO",
+        styles["Title"]
+    )
+)
+
+contenido.append(
+    Paragraph(
+        texto_formateado,
+        styles["Normal"]
+    )
+)
+
+doc.build(contenido)
