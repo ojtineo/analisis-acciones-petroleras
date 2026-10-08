@@ -10,7 +10,8 @@ import re
 from google import genai as gem
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from xml.sax.saxutils import escape
 
@@ -48,7 +49,7 @@ informe_ia = cliente.models.generate_content(
 
 
 """Para crear archivo .pdf con informe_ia.text importamos la lib re (regular expression) y
-ara convertir negritas de Markdown que trae informe_ia"""
+para convertir negritas de Markdown que trae informe_ia"""
 
 def markdown_a_reportlab (texto):
 
@@ -66,6 +67,14 @@ doc = SimpleDocTemplate(
 )
 
 styles = getSampleStyleSheet()
+
+estilo_viñeta = ParagraphStyle(
+    "Viñeta",
+    parent=styles["Normal"],
+    leftIndent=15,
+    firstLineIndent=0,
+    spaceAfter=4
+)
 contenido = []
 
 contenido.append(
@@ -75,11 +84,139 @@ contenido.append(
     )
 )
 
-contenido.append(
-    Paragraph(
-        texto_formateado,
-        styles["Normal"]
-    )
-)
+lineas = informe_ia.text.splitlines()
 
+i = 0
+
+while i < len(lineas):
+
+    linea = lineas[i].strip()
+
+    # Línea vacía
+    if not linea:
+        contenido.append(Spacer(1, 8))
+        i += 1
+        continue
+
+    # Títulos principales: ###
+    if linea.startswith("### "):
+        titulo = linea[4:]
+        titulo = markdown_a_reportlab(titulo)
+
+        contenido.append(
+            Paragraph(
+                titulo,
+                styles["Heading2"]
+            )
+        )
+
+        contenido.append(Spacer(1, 6))
+        i += 1
+        continue
+
+    # Subtítulos: ####
+    if linea.startswith("#### "):
+        subtitulo = linea[5:]
+        subtitulo = markdown_a_reportlab(subtitulo)
+
+        contenido.append(
+            Paragraph(
+                subtitulo,
+                styles["Heading3"]
+            )
+        )
+
+        contenido.append(Spacer(1, 4))
+        i += 1
+        continue
+
+    # Separador ---
+    if linea == "---":
+        contenido.append(Spacer(1, 8))
+        i += 1
+        continue
+
+    # Tabla
+    if linea.startswith("|"):
+
+        filas = []
+
+        while i < len(lineas) and lineas[i].strip().startswith("|"):
+
+            fila = lineas[i].strip()
+
+            # Ignoramos la línea de separación de Markdown
+            if not re.match(r'^\|[\s:|-]+\|$', fila):
+
+                celdas = fila.strip("|").split("|")
+
+                celdas = [
+                    Paragraph(
+                        markdown_a_reportlab(celda.strip()),
+                        styles["Normal"]
+                    )
+                    for celda in celdas
+                ]
+
+                filas.append(celdas)
+
+            i += 1
+
+        tabla = Table(
+            filas,
+            colWidths=[65, 120, 120, 120],
+            repeatRows=1
+        )
+
+        tabla.setStyle(
+            TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ])
+        )
+
+        contenido.append(tabla)
+        contenido.append(Spacer(1, 10))
+
+        continue
+
+    # Listas con *
+    if linea.startswith("*"):
+
+        texto_lista = linea.lstrip("*").strip()
+        texto_lista = markdown_a_reportlab(texto_lista)
+
+        contenido.append(
+            Paragraph(
+                "&#8226;&nbsp;&nbsp;" + texto_lista,
+                estilo_viñeta
+            )
+        )
+
+        i += 1
+        continue
+
+    # Texto normal
+    texto = markdown_a_reportlab(linea)
+
+    contenido.append(
+        Paragraph(
+            texto,
+            styles["Normal"]
+        )
+    )
+
+    contenido.append(Spacer(1, 6))
+
+    i += 1
+
+
+# Construimos el PDF UNA SOLA VEZ
 doc.build(contenido)
