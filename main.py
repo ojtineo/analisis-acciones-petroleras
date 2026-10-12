@@ -6,6 +6,7 @@ import pandas as pd
 import os
 import reportlab
 import re
+import smtplib
 
 from google import genai as gem
 from dotenv import load_dotenv
@@ -14,8 +15,60 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from xml.sax.saxutils import escape
+from email.message import EmailMessage
+from pathlib import Path
+
+
+
+def enviar_correo_pdf(ruta_pdf):
+    archivo = Path(ruta_pdf)
+    
+    destinatarios = os.getenv("DESTINATARIOS", "").split(",")
+    destinatarios = [correo.strip() for correo in destinatarios if correo.strip()]
+    
+    if not archivo.is_file():
+        raise FileNotFoundError(f"No se encontró el archivo: {archivo.resolve()}")
+
+    mensaje = EmailMessage()
+    mensaje["Subject"] = "Informe de análisis financiero"
+    mensaje["From"] = GMAIL_USER
+    mensaje["To"] = ", ".join(destinatarios)
+
+    mensaje.set_content(
+        "Adjunto encontrarás el informe de análisis financiero "
+        "generado con Python.")
+
+    
+    # Adjuntar el archivo HTML
+    ruta_html = "Gráfica de acciones.html"
+
+    with open(ruta_html, "rb") as archivo_html:
+        contenido_html = archivo_html.read()
+
+    mensaje.add_attachment(
+        contenido_html,
+        maintype="text",
+        subtype="html",
+        filename="Gráfica de acciones.html")
+
+    mensaje.add_attachment(
+        archivo.read_bytes(),
+        maintype="application",
+        subtype="pdf",
+        filename=archivo.name)
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as servidor:
+        servidor.starttls()
+        servidor.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        servidor.send_message(mensaje)
+
+    #print("Informe PDF enviado correctamente.")
 
 load_dotenv()
+
+
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
@@ -32,7 +85,9 @@ fig = px.line(cierre,
         labels={"Date": "Fecha", "value": "Precio", "variable": "Ticker"},
         template="plotly_dark")
 
-fig.write_html("Gráfica de acciones.html")
+fig.write_html("index.html",
+        include_plotlyjs=True,
+        full_html=True)
 
 cliente = gem.Client(api_key=GEMINI_API_KEY)
 
@@ -220,3 +275,5 @@ while i < len(lineas):
 
 # Construimos el PDF UNA SOLA VEZ
 doc.build(contenido)
+
+enviar_correo_pdf("inf_petr.pdf")
