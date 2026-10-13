@@ -81,7 +81,7 @@ vslor_medio = round(cierre.mean(), 2)
 valor_minimo = round(cierre.min(), 2)
 
 fig = px.line(cierre,
-        title="Cotización histórica (12 meses)",
+        title="Cotización histórica de acciones petroleras (12 meses)",
         labels={"Date": "Fecha", "value": "Precio", "variable": "Ticker"},
         template="plotly_dark")
 
